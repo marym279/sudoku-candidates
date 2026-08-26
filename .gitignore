@@ -1,0 +1,5 @@
+/sudoku-candidates
+/bin/
+*.test
+*.out
+coverage.txt
