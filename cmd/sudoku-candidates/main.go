@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -23,8 +24,9 @@ func main() {
 func run(args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("sudoku-candidates", flag.ContinueOnError)
 	cell := fs.String("cell", "", `query a single cell as "row,col" using 1-9 coordinates (default: every empty cell)`)
+	jsonOut := fs.Bool("json", false, "output as JSON instead of plain text, for scripting")
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "usage: sudoku-candidates [-cell row,col] <board-file|->")
+		fmt.Fprintln(fs.Output(), "usage: sudoku-candidates [-cell row,col] [-json] <board-file|->")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -56,14 +58,38 @@ func run(args []string, out io.Writer) error {
 		if err != nil {
 			return err
 		}
+		if *jsonOut {
+			return json.NewEncoder(out).Encode(toJSONCell(row, col, candidates))
+		}
 		fmt.Fprintln(out, formatCandidates(row, col, candidates))
 		return nil
 	}
 
-	for _, cc := range board.AllCandidates() {
+	all := board.AllCandidates()
+	if *jsonOut {
+		cells := make([]jsonCell, len(all))
+		for i, cc := range all {
+			cells[i] = toJSONCell(cc.Row, cc.Col, cc.Candidates)
+		}
+		return json.NewEncoder(out).Encode(cells)
+	}
+	for _, cc := range all {
 		fmt.Fprintln(out, formatCandidates(cc.Row, cc.Col, cc.Candidates))
 	}
 	return nil
+}
+
+// jsonCell is the -json representation of a cell's candidates. Row and
+// Col are 1-9, matching the -cell flag and the plain-text output, so
+// output from one mode can be checked against the other by hand.
+type jsonCell struct {
+	Row        int   `json:"row"`
+	Col        int   `json:"col"`
+	Candidates []int `json:"candidates"`
+}
+
+func toJSONCell(row, col int, candidates []int) jsonCell {
+	return jsonCell{Row: row + 1, Col: col + 1, Candidates: candidates}
 }
 
 func readBoard(path string) (string, error) {

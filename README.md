@@ -57,6 +57,22 @@ Read from stdin with `-`:
 $ cat board.txt | sudoku-candidates -cell 5,5 -
 ```
 
+Add `-json` to get machine-readable output instead, for piping into
+`jq` or another script. A single `-cell` query prints one object; the
+full-board form prints an array (an empty array `[]` for a fully
+solved board, not `null`):
+
+```
+$ sudoku-candidates -cell 1,3 -json board.txt
+{"row":1,"col":3,"candidates":[1,2,4]}
+
+$ sudoku-candidates -json board.txt
+[{"row":1,"col":3,"candidates":[1,2,4]},{"row":1,"col":4,"candidates":[2,4]},...]
+```
+
+Row and column in the JSON output are 1-9, matching `-cell` and the
+plain-text output.
+
 If the board already breaks a sudoku constraint (a digit repeated in a
 row, column, or 3x3 box), the tool reports that instead of candidates -
 candidates for a broken board aren't meaningful.
