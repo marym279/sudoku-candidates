@@ -120,6 +120,47 @@ func TestRunJSONInvalidBoardReportsError(t *testing.T) {
 	}
 }
 
+func TestRunGrid(t *testing.T) {
+	var out bytes.Buffer
+	path := writeTestBoard(t)
+	if err := run([]string{"-grid", path}, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
+	// 9 rows of cells + 2 box separators = 29 lines.
+	if len(lines) != 29 {
+		t.Fatalf("got %d lines, want 29:\n%s", len(lines), out.String())
+	}
+	for i, line := range lines {
+		wantSep := i == 9 || i == 19
+		gotSep := strings.HasPrefix(line, "---")
+		if gotSep != wantSep {
+			t.Fatalf("line %d = %q, box separator mismatch (want separator: %v)", i, line, wantSep)
+		}
+	}
+	// Board's (1,3) cell (1-9 coordinates) is empty with candidates 1 2 4.
+	// Candidates 1 and 2 sit at pad positions 0 and 1 of the pad's top
+	// row, so they render adjacently as "12".
+	if !strings.Contains(lines[0], "12") {
+		t.Fatalf("line 0 = %q, want it to contain candidates 1 2 for cell (1,3)", lines[0])
+	}
+	// A filled cell (1,1) holds a 5; it should render as a lone digit
+	// with blank padding around it, not a candidate pad.
+	if !strings.Contains(lines[1], " 5 ") {
+		t.Fatalf("line 1 = %q, want it to contain the filled digit 5", lines[1])
+	}
+}
+
+func TestRunGridRejectsJSONAndCell(t *testing.T) {
+	path := writeTestBoard(t)
+	if err := run([]string{"-grid", "-json", path}, &bytes.Buffer{}); err == nil {
+		t.Fatalf("run(-grid -json): expected error, got nil")
+	}
+	if err := run([]string{"-grid", "-cell", "1,3", path}, &bytes.Buffer{}); err == nil {
+		t.Fatalf("run(-grid -cell): expected error, got nil")
+	}
+}
+
 func equalInts(a, b []int) bool {
 	if len(a) != len(b) {
 		return false

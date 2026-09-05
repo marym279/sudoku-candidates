@@ -25,8 +25,9 @@ func run(args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("sudoku-candidates", flag.ContinueOnError)
 	cell := fs.String("cell", "", `query a single cell as "row,col" using 1-9 coordinates (default: every empty cell)`)
 	jsonOut := fs.Bool("json", false, "output as JSON instead of plain text, for scripting")
+	grid := fs.Bool("grid", false, "print a pretty grid showing every empty cell's candidates at once")
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "usage: sudoku-candidates [-cell row,col] [-json] <board-file|->")
+		fmt.Fprintln(fs.Output(), "usage: sudoku-candidates [-cell row,col] [-json] [-grid] <board-file|->")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -35,6 +36,12 @@ func run(args []string, out io.Writer) error {
 	if fs.NArg() != 1 {
 		fs.Usage()
 		return fmt.Errorf("expected exactly one board argument")
+	}
+	if *grid && *jsonOut {
+		return fmt.Errorf("-grid and -json cannot be combined")
+	}
+	if *grid && *cell != "" {
+		return fmt.Errorf("-grid and -cell cannot be combined")
 	}
 
 	data, err := readBoard(fs.Arg(0))
@@ -47,6 +54,11 @@ func run(args []string, out io.Writer) error {
 	}
 	if err := board.Valid(); err != nil {
 		return err
+	}
+
+	if *grid {
+		fmt.Fprint(out, formatGrid(board))
+		return nil
 	}
 
 	if *cell != "" {
@@ -121,6 +133,62 @@ func parseCell(s string) (row, col int, err error) {
 		return 0, 0, fmt.Errorf("cell %q: col must be 1-9", s)
 	}
 	return r - 1, c - 1, nil
+}
+
+// formatGrid renders the whole board as a 9x9 grid where a filled cell
+// shows its digit and an empty cell shows a 3x3 pad of its candidates
+// (candidate n sits at position (n-1)/3, (n-1)%3 within the pad), so the
+// candidates for every cell are visible at once without cross-referencing
+// a list of coordinates.
+func formatGrid(b sudoku.Board) string {
+	const boxSep = "---------+---------+---------\n"
+	var sb strings.Builder
+	for boxRow := 0; boxRow < 3; boxRow++ {
+		if boxRow > 0 {
+			sb.WriteString(boxSep)
+		}
+		for row := boxRow * 3; row < boxRow*3+3; row++ {
+			for subRow := 0; subRow < 3; subRow++ {
+				for boxCol := 0; boxCol < 3; boxCol++ {
+					if boxCol > 0 {
+						sb.WriteString("|")
+					}
+					for col := boxCol * 3; col < boxCol*3+3; col++ {
+						sb.WriteString(cellPad(b, row, col)[subRow])
+					}
+				}
+				sb.WriteString("\n")
+			}
+		}
+	}
+	return sb.String()
+}
+
+// cellPad returns the three 3-character lines used to render a single
+// cell inside formatGrid.
+func cellPad(b sudoku.Board, row, col int) [3]string {
+	if v := b[row][col]; v != 0 {
+		return [3]string{"   ", fmt.Sprintf(" %d ", v), "   "}
+	}
+	// Candidates can't fail here: row/col are in range and the cell is
+	// confirmed empty.
+	candidates, _ := b.Candidates(row, col)
+	var present [10]bool
+	for _, c := range candidates {
+		present[c] = true
+	}
+	var pad [3]string
+	for r := 0; r < 3; r++ {
+		line := [3]byte{' ', ' ', ' '}
+		for c := 0; c < 3; c++ {
+			n := r*3 + c + 1
+			if present[n] {
+				line[c] = byte('0' + n)
+			}
+		}
+		pad[r] = string(line[:])
+	}
+	return pad
 }
 
 func formatCandidates(row, col int, candidates []int) string {

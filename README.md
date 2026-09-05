@@ -57,6 +57,23 @@ Read from stdin with `-`:
 $ cat board.txt | sudoku-candidates -cell 5,5 -
 ```
 
+Add `-grid` to see every empty cell's candidates at once, laid out where
+they sit: each cell is a 3x3 pad, and candidate *n* sits at position
+`(n-1)/3, (n-1)%3` within its cell's pad. A filled cell shows its digit
+alone in the middle of the pad:
+
+```
+$ sudoku-candidates -grid board.txt
+      12 | 2    2 |1  12  2 
+ 5  3 4  |  6 7 4 6|4  4  4  
+         |       8 | 89  9 8 
+---------+---------+---------
+...
+```
+
+`-grid` cannot be combined with `-cell` or `-json`; it's a plain-text
+view of the whole board, not a machine-readable one.
+
 Add `-json` to get machine-readable output instead, for piping into
 `jq` or another script. A single `-cell` query prints one object; the
 full-board form prints an array (an empty array `[]` for a fully
