@@ -110,3 +110,21 @@ candidates, err := b.Candidates(row, col) // zero-indexed
 `Candidates` can return an empty (non-nil) slice: that means the cell
 is empty but the board's current state has already ruled out every
 digit, which happens on boards with no valid solution.
+
+## Generating test boards
+
+`GenerateSolved` and `GeneratePartial` build random valid boards, seeded
+through a `*rand.Rand` so a failing case can be reproduced from its
+seed. They're meant for tests that want many realistic boards rather
+than a handful of hand-written fixtures - `GeneratePartial` in
+particular is useful for throwing `AllCandidates` at boards with a
+wide range of clue counts:
+
+```go
+rng := rand.New(rand.NewSource(seed))
+b := sudoku.GeneratePartial(rng, 30) // 30 filled cells, rest empty
+b.AllCandidates()
+```
+
+`GeneratePartial` does not check that the remaining clues still pin a
+unique solution - it's a valid board, not a proper puzzle.
