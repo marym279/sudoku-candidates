@@ -26,8 +26,9 @@ func run(args []string, out io.Writer) error {
 	cell := fs.String("cell", "", `query a single cell as "row,col" using 1-9 coordinates (default: every empty cell)`)
 	jsonOut := fs.Bool("json", false, "output as JSON instead of plain text, for scripting")
 	grid := fs.Bool("grid", false, "print a pretty grid showing every empty cell's candidates at once")
+	fillSingles := fs.Bool("fill-singles", false, "before reporting, fill any cell that has exactly one legal candidate, and repeat until none remain")
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "usage: sudoku-candidates [-cell row,col] [-json] [-grid] <board-file|->")
+		fmt.Fprintln(fs.Output(), "usage: sudoku-candidates [-cell row,col] [-json] [-grid] [-fill-singles] <board-file|->")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -54,6 +55,10 @@ func run(args []string, out io.Writer) error {
 	}
 	if err := board.Valid(); err != nil {
 		return err
+	}
+
+	if *fillSingles {
+		board, _ = board.FillSingles()
 	}
 
 	if *grid {

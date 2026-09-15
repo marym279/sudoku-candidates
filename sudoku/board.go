@@ -155,3 +155,39 @@ func (b Board) AllCandidates() []CellCandidates {
 	}
 	return out
 }
+
+// FillSingles repeatedly places the digit into any empty cell that has
+// exactly one legal candidate. Placing that digit can only remove
+// options from the rest of the board, never add one, so it can turn
+// other cells into singles too; FillSingles keeps sweeping the board
+// until a pass places nothing. It returns the resulting board and how
+// many cells it filled.
+//
+// This is not a solver: a board can reach a fixed point with unfilled
+// cells remaining, each with two or more candidates, and FillSingles
+// will stop there rather than guess.
+func (b Board) FillSingles() (Board, int) {
+	filled := 0
+	for {
+		progressed := false
+		for row := 0; row < 9; row++ {
+			for col := 0; col < 9; col++ {
+				if b[row][col] != 0 {
+					continue
+				}
+				// Candidates can't fail here: row/col are in range and
+				// the cell is confirmed empty.
+				c, _ := b.Candidates(row, col)
+				if len(c) == 1 {
+					b[row][col] = c[0]
+					filled++
+					progressed = true
+				}
+			}
+		}
+		if !progressed {
+			break
+		}
+	}
+	return b, filled
+}

@@ -94,6 +94,14 @@ If the board already breaks a sudoku constraint (a digit repeated in a
 row, column, or 3x3 box), the tool reports that instead of candidates -
 candidates for a broken board aren't meaningful.
 
+Add `-fill-singles` to auto-fill any cell whose candidates have already
+narrowed to exactly one digit before reporting. It sweeps repeatedly,
+since placing one single can narrow another cell down to a single too,
+and stops once a pass places nothing. This is opt-in and off by
+default: it can only ever remove cells from the report (a resolved
+cell has nothing left to ask about), and it is not a solver - it won't
+guess when a cell still has two or more candidates.
+
 ## As a library
 
 ```go
@@ -110,6 +118,15 @@ candidates, err := b.Candidates(row, col) // zero-indexed
 `Candidates` can return an empty (non-nil) slice: that means the cell
 is empty but the board's current state has already ruled out every
 digit, which happens on boards with no valid solution.
+
+`FillSingles` is the opt-in auto-fill step behind `-fill-singles`: it
+places any digit that's the only legal candidate left for its cell,
+repeating until a pass places nothing, and returns the resulting board
+along with how many cells it filled.
+
+```go
+solved, filled := b.FillSingles()
+```
 
 ## Generating test boards
 

@@ -242,6 +242,23 @@ func TestCandidates(t *testing.T) {
 	}
 }
 
+// Cell (0,8) is a naked single: row 0 supplies every digit but 9.
+// Filling it completes column 8's missing-1-and-9 gap down to just 1,
+// which is what (5,8) needs to become a single itself only after the
+// first fill happens - a genuine two-step cascade, not two independent
+// singles.
+const cascadingSinglesBoard = `
+12345678.
+........2
+........3
+........4
+........5
+.........
+........6
+........7
+........8
+`
+
 func TestAllCandidates(t *testing.T) {
 	t.Run("solved board has nothing to report", func(t *testing.T) {
 		b, err := ParseBoard(solvedBoard)
@@ -268,6 +285,58 @@ func TestAllCandidates(t *testing.T) {
 		}
 		if len(first.Candidates) != 9 {
 			t.Fatalf("first cell candidates = %v, want all 9 digits", first.Candidates)
+		}
+	})
+}
+
+func TestFillSingles(t *testing.T) {
+	t.Run("solved board fills nothing", func(t *testing.T) {
+		b, err := ParseBoard(solvedBoard)
+		if err != nil {
+			t.Fatalf("ParseBoard: %v", err)
+		}
+		got, filled := b.FillSingles()
+		if filled != 0 {
+			t.Fatalf("filled = %d, want 0", filled)
+		}
+		if got != b {
+			t.Fatalf("FillSingles changed a solved board")
+		}
+	})
+
+	t.Run("wide open board fills nothing", func(t *testing.T) {
+		b, err := ParseBoard(emptyBoard)
+		if err != nil {
+			t.Fatalf("ParseBoard: %v", err)
+		}
+		_, filled := b.FillSingles()
+		if filled != 0 {
+			t.Fatalf("filled = %d, want 0: every cell has 9 candidates, none is a single", filled)
+		}
+	})
+
+	t.Run("cascading singles resolve in one call", func(t *testing.T) {
+		b, err := ParseBoard(cascadingSinglesBoard)
+		if err != nil {
+			t.Fatalf("ParseBoard: %v", err)
+		}
+		got, filled := b.FillSingles()
+		if filled != 2 {
+			t.Fatalf("filled = %d, want 2", filled)
+		}
+		if got[0][8] != 9 {
+			t.Fatalf("(0,8) = %d, want 9", got[0][8])
+		}
+		if got[5][8] != 1 {
+			t.Fatalf("(5,8) = %d, want 1: only reachable after (0,8) is filled", got[5][8])
+		}
+		if err := got.Valid(); err != nil {
+			t.Fatalf("FillSingles produced an invalid board: %v", err)
+		}
+		// Plenty of cells in columns 0-7 are still wide open; FillSingles
+		// must not have guessed at any of them.
+		if len(got.AllCandidates()) == 0 {
+			t.Fatalf("board looks fully solved, want cells left open")
 		}
 	})
 }

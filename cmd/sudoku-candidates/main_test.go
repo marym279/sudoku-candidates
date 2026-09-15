@@ -151,6 +151,55 @@ func TestRunGrid(t *testing.T) {
 	}
 }
 
+// Row 0 has every digit but 9, so (0,8) is a naked single; filling it
+// with 9 has no effect on the rest of this board's column/box, so the
+// only observable change is that (0,8) drops out of the report.
+const singleAtCornerBoard = `
+12345678.
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+`
+
+func TestRunFillSinglesRemovesResolvedCellFromOutput(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "single.txt")
+	if err := os.WriteFile(path, []byte(singleAtCornerBoard), 0o644); err != nil {
+		t.Fatalf("writing test board: %v", err)
+	}
+
+	var without bytes.Buffer
+	if err := run([]string{"-json", path}, &without); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	var withoutCells []jsonCell
+	if err := json.Unmarshal(without.Bytes(), &withoutCells); err != nil {
+		t.Fatalf("unmarshaling output %q: %v", without.String(), err)
+	}
+
+	var with bytes.Buffer
+	if err := run([]string{"-fill-singles", "-json", path}, &with); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	var withCells []jsonCell
+	if err := json.Unmarshal(with.Bytes(), &withCells); err != nil {
+		t.Fatalf("unmarshaling output %q: %v", with.String(), err)
+	}
+
+	if len(withCells) != len(withoutCells)-1 {
+		t.Fatalf("-fill-singles: got %d cells, want %d (one fewer than %d)", len(withCells), len(withoutCells)-1, len(withoutCells))
+	}
+	for _, c := range withCells {
+		if c.Row == 1 && c.Col == 9 {
+			t.Fatalf("-fill-singles: (1,9) still reported after it should have been auto-filled")
+		}
+	}
+}
+
 func TestRunGridRejectsJSONAndCell(t *testing.T) {
 	path := writeTestBoard(t)
 	if err := run([]string{"-grid", "-json", path}, &bytes.Buffer{}); err == nil {
